@@ -70,7 +70,7 @@ class Bayes:
 
         # So, for each hypothesis, the results gets updated at each individual step
         # because that is easy and efficient
-        results = [1] * len(hypos)
+        results = [1] * len(self.hyp)
         for elem in observations:
             temp_res = self.single_posterior_update(elem, self.priors)
 
@@ -102,3 +102,41 @@ if __name__ == '__main__':
 
     p_2 = b.compute_posterior(["chocolate", "vanilla"])
     print("chocolate, vanilla - posterior: %s" % p_2)
+
+    # Here is the code for the archery problem exercises
+    hypos_arch = ['Beginner', 'Intermediate', 'Advanced', 'Expert']
+    priors_arch = [0.25, 0.25, 0.25, 0.25]
+    obs_arch = ['yellow', 'red', 'blue', 'black', 'white']
+    likelihood_arch = [[0.05, 0.1, 0.4, 0.25, 0.2],
+                       [0.1, 0.2, 0.4, 0.2, 0.1],
+                       [0.2, 0.4, 0.25, 0.1, 0.05],
+                       [0.3, 0.5, 0.125, 0.05, 0.025]]
+
+    b_arch = Bayes(hypos_arch, priors_arch, obs_arch, likelihood_arch)
+
+    # This is what the exercise says that we saw. So the sequence of shots taken
+    observe_test = ['yellow', 'white', 'blue', 'red', 'red', 'blue']
+    prob_posterior_arch = b_arch.compute_posterior(observe_test)
+
+    # I'm not sure if this should be normalized afterwards... as these won't necessarily add up to 1
+    # For now, I'll just assume they don't have to be normalized, because I'm lazy
+    prob_intermediate = prob_posterior_arch[1]
+    print('Probability of intermediate level archer: %s' %prob_intermediate)
+
+    max_index = prob_posterior_arch.index(max(prob_posterior_arch))
+    most_likely_arch = hypos_arch[max_index]
+    print('Most likely archer is ' + most_likely_arch)
+
+    # This is just writing everything into a text file
+    f = open('answers.txt', 'w')
+    f.write(str(l) + '\n')
+    f.write(str(n_c) + '\n')
+    # I grabbed the 0th element because we only care about the probabilities of it being from
+    # bowl 1
+    f.write(str(p_1[0]) + '\n')
+    # Same idea as previous, but for bowl 2
+    f.write(str(p_2[1]) + '\n')
+    f.write(str(prob_intermediate) + '\n')
+    f.write(str(most_likely_arch) + '\n')
+
+    f.close()
