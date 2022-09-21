@@ -79,6 +79,11 @@ class Bayes:
             for i in range(len(temp_res)):
                 results[i] = temp_res[i] * results[i]
 
+            # Now I normalize the priors, and then save the new values inside
+            sum_res_temp = sum(results)
+            for i in range(len(temp_res)):
+                results[i] = results[i]/sum_res_temp
+
         return results
 
 
@@ -122,15 +127,17 @@ if __name__ == '__main__':
     # For now, I'll just assume they don't have to be normalized, because I'm lazy
     prob_intermediate = prob_posterior_arch[1]
     print('Probability of intermediate level archer: %s' %prob_intermediate)
+    print('The probability of all archers is: ' + str(prob_posterior_arch))
 
     max_index = prob_posterior_arch.index(max(prob_posterior_arch))
     most_likely_arch = hypos_arch[max_index]
     print('Most likely archer is ' + most_likely_arch)
+    print('With a probability of: ' + str(max(prob_posterior_arch)))
 
     # This is just writing everything into a text file
     f = open('answers.txt', 'w')
-    f.write(str(l) + '\n')
-    f.write(str(n_c) + '\n')
+    # f.write(str(l) + '\n')
+    # f.write(str(n_c) + '\n')
     # I grabbed the 0th element because we only care about the probabilities of it being from
     # bowl 1
     f.write(str(p_1[0]) + '\n')
