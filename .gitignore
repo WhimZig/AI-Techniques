@@ -122,3 +122,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+Lab_2/recorded_episodes/
+
+Lab_2/.idea/
