@@ -55,13 +55,19 @@ class ReplayMemory(object):
 
     # Randomly sample "batch_size" experiences from the memory and return them
     def sample_batch(self, batch_size):
-        indexes_to_sample = random.sample(range(0, len(self.prev_observations)), batch_size)
+        # Ugly dumb way because sample can be larger than population and this avoids that
+        indexes_to_sample = [None] * batch_size
+        for i in range(batch_size):
+            indexes_to_sample[i] = random.randint(0, len(self.prev_observations)-1)
 
-        prev_obs_result = [self.prev_observations[i] for i in indexes_to_sample]
-        actions_result = [self.actions[i] for i in indexes_to_sample]
-        observ_result = [self.observations[i] for i in indexes_to_sample]
-        rewards_result = [self.rewards[i] for i in indexes_to_sample]
-        dones_result = [self.dones[i] for i in indexes_to_sample]
+        # Sample size can be larger than population, so we're removing this code
+        # indexes_to_sample = random.sample(range(0, len(self.prev_observations)), batch_size)
+
+        prev_obs_result = np.array([self.prev_observations[i] for i in indexes_to_sample])
+        actions_result = np.array([self.actions[i] for i in indexes_to_sample])
+        observ_result = np.array([self.observations[i] for i in indexes_to_sample])
+        rewards_result = np.array([self.rewards[i] for i in indexes_to_sample])
+        dones_result = np.array([self.dones[i] for i in indexes_to_sample])
 
         return prev_obs_result, actions_result, observ_result, rewards_result, dones_result
 
@@ -127,7 +133,7 @@ class QNet(nn.Module):
 
         return q
 
-    def single_Q_update(self, prev_observation, action, observation, reward, done):
+    def single_Q_update(self, prev_observation, action, observation, reward, done, target_network):
         """ action and observation need to be in the format that QNet was constructed for.
             I.e., if observation is a discrete variable (with say N values=states), but QNet
             is working on one-hot vectors (of length N), then observation needs to be such a
@@ -141,7 +147,7 @@ class QNet(nn.Module):
         if done:
             future_val = 0 
         else:
-            future_val = self.max_Q_value(t_observation)        ##<<- this evaluates the QNet
+            future_val = target_network.max_Q_value(t_observation)        ##<<- this evaluates the QNet
         # We just evaluated the Qnet for the next-stage variables, but of course... the effect of the Qnet 
         # parameters on the *next-stage* value is ignored by Q-learning. 
         # (residual gradient algorithms do takes this into account, but 
@@ -171,10 +177,10 @@ class QNet(nn.Module):
         debug_utils.debug_q_update(prev_observation, action, observation, reward, done, predict, self.discount, future_val,
                                    target, td, new_q)
 
-    def batch_Q_update(self, obs, actions, next_obs, rewards, dones):
+    def batch_Q_update(self, obs, actions, next_obs, rewards, dones, target_network):
 
         batch_size = len(dones)
-        v_next_obs = self.max_Q_value(next_obs, batch_size)
+        v_next_obs = target_network.max_Q_value(next_obs, batch_size)
         not_dones = 1 - dones
         fut_values = self.discount * v_next_obs * not_dones
         targets = rewards + fut_values
@@ -226,11 +232,14 @@ class QNet_MLP(QNet):
 
 
 class QLearner(object):
-    def __init__(self, env, q_function, discount=DEFAULT_DISCOUNT, rm_size=RMSIZE):
+    def __init__(self, env, q_function, target_q_function, discount=DEFAULT_DISCOUNT, rm_size=RMSIZE):
         self.env = env
         self.Q = q_function
         self.rm = ReplayMemory(rm_size)  # replay memory stores (a subset of) experience across episode
         self.discount = discount
+
+        # Updated constructor to include the target q function
+        self.target_network = target_q_function
 
         self.epsilon = EPSILON
         self.epsilon_min = .01
@@ -257,20 +266,26 @@ class QLearner(object):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay # Decay epsilon
 
+        # Here we update the target_network with the code that they've given us
+        self.target_network.load_state_dict(self.Q.state_dict())
+
     def process_experience(self, action, observation, reward, done):
         prev_observation = self.last_obs
         self.cum_r += reward
         self.dis_r += reward * (self.discount ** self.stage)
         self.stage += 1
-        self.Q.single_Q_update(prev_observation, action, observation, reward, done)
+        self.Q.single_Q_update(prev_observation, action, observation, reward, done, self.target_network)
         self.last_obs = observation
+
+        self.rm.store_experience(prev_observation, action, observation, reward, done)
 
         # TODO coding exercise 3: Do a batch update using experience stored in the replay memory
         if self.tot_stages > 10 * self.batch_size:
             prev_obs_result, actions_result, observ_result, rewards_result, dones_result =\
                 self.rm.sample_batch(self.batch_size)
 
-            self.Q.batch_Q_update(prev_obs_result, actions_result, observ_result, rewards_result, dones_result)
+            self.Q.batch_Q_update(prev_obs_result, actions_result, observ_result, rewards_result, dones_result,
+                                  self.target_network)
 
 
     def select_action(self):
