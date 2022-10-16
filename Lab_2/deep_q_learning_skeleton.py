@@ -28,15 +28,42 @@ class ReplayMemory(object):
     # ReplayMemory should store the last "size" experiences
     # and be able to return a randomly sampled batch of experiences
     def __init__(self, size):
-        pass #<- TODO: you need to modify this
+        self.size = size
+        self.prev_observations = []
+        self.actions = []
+        self.observations = []
+        self.rewards = []
+        self.dones = []
 
     # Store experience in memory
     def store_experience(self, prev_obs, action, observation, reward, done):
-        pass #<- TODO: you need to modify this
+        # No idea what done is given for...
+
+        # Taking one of the lists, any arbitrary list should work
+        if len(self.actions) > self.size:
+            self.prev_observations.pop(0)
+            self.actions.pop(0)
+            self.observations.pop(0)
+            self.rewards.pop(0)
+            self.dones.pop(0)
+
+        self.prev_observations.append(prev_obs)
+        self.actions.append(action)
+        self.observations.append(observation)
+        self.rewards.append(reward)
+        self.dones.append(done)
 
     # Randomly sample "batch_size" experiences from the memory and return them
     def sample_batch(self, batch_size):
-        pass #<- TODO: you need to modify this
+        indexes_to_sample = random.sample(range(0, len(self.prev_observations)), batch_size)
+
+        prev_obs_result = [self.prev_observations[i] for i in indexes_to_sample]
+        actions_result = [self.actions[i] for i in indexes_to_sample]
+        observ_result = [self.observations[i] for i in indexes_to_sample]
+        rewards_result = [self.rewards[i] for i in indexes_to_sample]
+        dones_result = [self.dones[i] for i in indexes_to_sample]
+
+        return prev_obs_result, actions_result, observ_result, rewards_result, dones_result
 
 
 # DEBUG=True
@@ -239,9 +266,11 @@ class QLearner(object):
         self.last_obs = observation
 
         # TODO coding exercise 3: Do a batch update using experience stored in the replay memory
-        # if self.tot_stages > 10 * self.batch_size:
-            # sample a batch of batch_size from the replay memory
-            # and update the network using this batch (batch_Q_update)
+        if self.tot_stages > 10 * self.batch_size:
+            prev_obs_result, actions_result, observ_result, rewards_result, dones_result =\
+                self.rm.sample_batch(self.batch_size)
+
+            self.Q.batch_Q_update(prev_obs_result, actions_result, observ_result, rewards_result, dones_result)
 
 
     def select_action(self):
